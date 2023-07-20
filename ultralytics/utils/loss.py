@@ -225,6 +225,10 @@ class v8SegmentationLoss(v8DetectionLoss):
         anchor_points, stride_tensor = make_anchors(feats, self.stride, 0.5)
 
         # targets
+        print(f"batch['batch_idx']: {batch['batch_idx'].shape}")
+        print(f"batch['cls']: {batch['cls'].shape}")
+        print(f"batch['bboxes']: {batch['bboxes'].shape}")
+        print(f"batch['masks']: {batch['masks'].shape}")
         try:
             batch_idx = batch['batch_idx'].view(-1, 1)
             targets = torch.cat((batch_idx, batch['cls'].view(-1, 1), batch['bboxes']), 1)
