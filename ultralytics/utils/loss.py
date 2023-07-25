@@ -172,18 +172,6 @@ class v8DetectionLoss:
         targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
         gt_labels, gt_bboxes = targets.split((1, 4), 2)  # cls, xyxy
         mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0)
-
-        #targets2
-        #cls_bis = batch['cls'] !=0  #0 is the class to ignore for computing cls loss
-        #indices,_ = torch.nonzero(cls_bis, as_tuple=True)
-        #cls2 = batch['cls'][indices]
-        #batch_idx2 = batch['batch_idx'][indices]
-        #bboxes2 = batch['bboxes'][indices]
-        
-        #targets2 = torch.cat((batch_idx2.view(-1, 1), cls2.view(-1, 1), bboxes2), 1)
-        #targets2 = self.preprocess(targets2.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
-        #gt_labels2, gt_bboxes2 = targets2.split((1, 4), 2)  # cls, xyxy
-        #mask_gt2 = gt_bboxes2.sum(2, keepdim=True).gt_(0)
         
         # pboxes
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
@@ -193,11 +181,16 @@ class v8DetectionLoss:
             anchor_points * stride_tensor, gt_labels, gt_bboxes, mask_gt)
 
         target_scores_sum = max(target_scores.sum(), 1)
+
+        #ignore class 0 for cls loss computing
+        pred_scores2 = pred_scores[:,:,1:self.nc]
+        target_scores2 = target_scores[:,:,1:self.nc]
+        target_scores_sum2 = max(target_scores2.sum(), 1)
         
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
-        loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
-        #loss[1] = self.bce(pred_scores, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore unannotated class (0) in the cls loss computing        
+        #loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
+        loss[1] = self.bce(pred_scores2, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore class 0 for cls loss computing        
 
         # bbox loss
         if fg_mask.sum():
@@ -239,18 +232,6 @@ class v8SegmentationLoss(v8DetectionLoss):
 
         # targets
         try:
-            #targets2
-            #cls_bis = batch['cls'] !=0  #0 is the class to ignore for computing cls loss
-            #indices,_ = torch.nonzero(cls_bis, as_tuple=True)
-            #cls2 = batch['cls'][indices]
-            #batch_idx2 = batch['batch_idx'][indices]
-            #bboxes2 = batch['bboxes'][indices]
-            
-            #targets2 = torch.cat((batch_idx2.view(-1, 1), cls2.view(-1, 1), bboxes2), 1)
-            #targets2 = self.preprocess(targets2.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
-            #gt_labels2, gt_bboxes2 = targets2.split((1, 4), 2)  # cls, xyxy
-            #mask_gt2 = gt_bboxes2.sum(2, keepdim=True).gt_(0)
-
             #targets
             batch_idx = batch['batch_idx'].view(-1, 1)
             targets = torch.cat((batch_idx, batch['cls'].view(-1, 1), batch['bboxes']), 1)
@@ -267,28 +248,21 @@ class v8SegmentationLoss(v8DetectionLoss):
         # pboxes
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
 
-        target_labels, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
+        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
             pred_scores.detach().sigmoid(), (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
             anchor_points * stride_tensor, gt_labels, gt_bboxes, mask_gt)
 
         target_scores_sum = max(target_scores.sum(), 1)
 
-        print(target_labels.shape)
-        print(target_scores.shape)
-        print(torch.unique(target_labels))
-        print(torch.unique(target_gt_idx))
-
-        #for targets2
-        #_, target_bboxes2, target_scores2, fg_mask2, target_gt_idx2 = self.assigner(
-        #    pred_scores.detach().sigmoid(), (pred_bboxes.detach() * stride_tensor).type(gt_bboxes2.dtype),
-        #    anchor_points * stride_tensor, gt_labels2, gt_bboxes2, mask_gt2)
-
-        #target_scores_sum2 = max(target_scores2.sum(), 1)
+        #ignore class 0 for cls loss computing
+        pred_scores2 = pred_scores[:,:,1:self.nc]
+        target_scores2 = target_scores[:,:,1:self.nc]
+        target_scores_sum2 = max(target_scores2.sum(), 1)
 
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
-        loss[2] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
-        #loss[2] = self.bce(pred_scores, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore unannotated class (0) in the cls loss computing
+        #loss[2] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
+        loss[2] = self.bce(pred_scores2, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore class 0 for cls loss computing
 
         if fg_mask.sum():
             # bbox loss
