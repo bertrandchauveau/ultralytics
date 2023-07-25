@@ -275,9 +275,8 @@ class v8SegmentationLoss(v8DetectionLoss):
 
         print(target_labels.shape)
         print(target_scores.shape)
-        print(target_labels)
-        print(target_scores)
-        print(target_gt_idx)
+        print(torch.unique(target_labels))
+        print(torch.unique(target_gt_idx))
 
         #for targets2
         #_, target_bboxes2, target_scores2, fg_mask2, target_gt_idx2 = self.assigner(
