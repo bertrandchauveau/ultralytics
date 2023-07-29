@@ -176,21 +176,27 @@ class v8DetectionLoss:
         # pboxes
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
 
-        _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
+        target_labels, target_bboxes, target_scores, fg_mask, _ = self.assigner(
             pred_scores.detach().sigmoid(), (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
             anchor_points * stride_tensor, gt_labels, gt_bboxes, mask_gt)
 
         target_scores_sum = max(target_scores.sum(), 1)
 
-        #ignore class 0 for cls loss computing
-        pred_scores2 = pred_scores[:,:,1:self.nc]
-        target_scores2 = target_scores[:,:,1:self.nc]
-        target_scores_sum2 = max(target_scores2.sum(), 1)
+        # ignore class 0 for cls loss computing
+        target_scores_sum2 = torch.zeros(1, device=self.device)
+        for i in range(batch_size):
+            target_labels_imgbis = target_labels[i] !=0 #boolean
+            indices0, = torch.nonzero(target_labels_imgbis, as_tuple=True) #indices of all class except 0
+            target_scores_img2 = target_scores[i][indices0]
+            pred_scores_img2 = pred_scores[i][indices0]
+            #compute loss while ignoring class 0
+            loss[1] += self.bce(pred_scores_img2, target_scores_img2.to(dtype)).sum() # BCE
+            target_scores_sum2  += max(target_scores_img2.sum(), 1)
+        loss[1] /= target_scores_sum2 
         
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
-        #loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
-        loss[1] = self.bce(pred_scores2, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore class 0 for cls loss computing        
+        # loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE    
 
         # bbox loss
         if fg_mask.sum():
@@ -248,21 +254,28 @@ class v8SegmentationLoss(v8DetectionLoss):
         # pboxes
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
 
-        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
+        target_labels, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
             pred_scores.detach().sigmoid(), (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
             anchor_points * stride_tensor, gt_labels, gt_bboxes, mask_gt)
 
         target_scores_sum = max(target_scores.sum(), 1)
 
-        #ignore class 0 for cls loss computing
-        pred_scores2 = pred_scores[:,:,1:self.nc]
-        target_scores2 = target_scores[:,:,1:self.nc]
-        target_scores_sum2 = max(target_scores2.sum(), 1)
+        # ignore class 0 for cls loss computing
+        target_scores_sum2 = torch.zeros(1, device=self.device)
+        for i in range(batch_size):
+            target_labels_imgbis = target_labels[i] !=0 #boolean
+            indices0, = torch.nonzero(target_labels_imgbis, as_tuple=True) #indices of all class except 0
+            target_scores_img2 = target_scores[i][indices0]
+            pred_scores_img2 = pred_scores[i][indices0]
+            #compute loss while ignoring class 0
+            loss[2] += self.bce(pred_scores_img2, target_scores_img2.to(dtype)).sum() # BCE
+            target_scores_sum2  += max(target_scores_img2.sum(), 1)
+        loss[2] /= target_scores_sum2 
 
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
         #loss[2] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
-        loss[2] = self.bce(pred_scores2, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore class 0 for cls loss computing
+        # loss[2] = self.bce(pred_scores2, target_scores2.to(dtype)).sum() / target_scores_sum2  # ignore class 0 for cls loss computing
 
         if fg_mask.sum():
             # bbox loss
