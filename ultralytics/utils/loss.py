@@ -192,7 +192,7 @@ class v8DetectionLoss:
             #compute loss while ignoring class 0
             loss[1] += self.bce(pred_scores_img2, target_scores_img2.to(dtype)).sum() # BCE
             target_scores_sum2  += max(target_scores_img2.sum(), 1)
-        loss[1] /= target_scores_sum2 
+        loss[1] /= target_scores_sum2[0] 
         
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
@@ -270,7 +270,7 @@ class v8SegmentationLoss(v8DetectionLoss):
             #compute loss while ignoring class 0
             loss[2] += self.bce(pred_scores_img2, target_scores_img2.to(dtype)).sum() # BCE
             target_scores_sum2  += max(target_scores_img2.sum(), 1)
-        loss[2] /= target_scores_sum2 
+        loss[2] /= target_scores_sum2[0] 
 
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
